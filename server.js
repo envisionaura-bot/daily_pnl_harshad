@@ -172,9 +172,14 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log('\n╔════════════════════════════════════════╗');
-  console.log('║   Trading Dashboard is running!        ║');
-  console.log(`║   Open: http://localhost:${PORT}          ║`);
-  console.log('╚════════════════════════════════════════╝\n');
-});
+// Required for Vercel serverless — also keeps local `node server.js` working
+module.exports = app;
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log('\n╔════════════════════════════════════════╗');
+    console.log('║   Trading Dashboard is running!        ║');
+    console.log(`║   Open: http://localhost:${PORT}          ║`);
+    console.log('╚════════════════════════════════════════╝\n');
+  });
+}

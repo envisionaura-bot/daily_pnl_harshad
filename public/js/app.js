@@ -1062,15 +1062,11 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
       toast('File missing strategies or entries', 'err'); return;
     }
 
-    const confirmed = confirm(
-      `Import will REPLACE all current data with:
-` +
-      `• ${parsed.strategies.length} strategies
-` +
-      `• ${parsed.entries.length} entries
-
-` +
-      `Make sure you have a backup. Continue?`
+    const confirmed = await confirmModal(
+      `Import will <b>replace all current data</b> with:<br><br>` +
+      `• ${parsed.strategies.length} strategies<br>` +
+      `• ${parsed.entries.length} entries<br><br>` +
+      `Make sure you have a backup.`
     );
     if (!confirmed) return;
 
@@ -1079,8 +1075,8 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
       if (res.error) { toast(res.error, 'err'); return; }
       toast(`Imported ${res.entries} entries across ${res.strategies} strategies`);
       await loadData();
-    } catch {
-      toast('Import failed — check console', 'err');
+    } catch (e) {
+      toast('Import failed: ' + e.message, 'err');
     }
   };
   reader.readAsText(file);
