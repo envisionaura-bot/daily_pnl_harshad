@@ -45,22 +45,23 @@ function destroyChart(key) {
   }
 }
 
-// ---- API ----
-async function api(method, path, body) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(path, opts);
-  if (!res.ok) {
-    const text = await res.text();
-    let msg;
-    try { msg = JSON.parse(text).error; } catch { msg = `Server error ${res.status}`; }
-    throw new Error(msg || `Server error ${res.status}`);
-  }
-  return res.json();
+// ---- Local Storage Data Layer ----
+const LS_KEY = 'tradedesk_data';
+
+function getData() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { strategies: [], entries: [] };
 }
 
-async function loadData() {
-  allData = await api('GET', '/api/data');
+function saveData(data) {
+  localStorage.setItem(LS_KEY, JSON.stringify(data));
+}
+
+function loadData() {
+  allData = getData();
   renderStrategyFilters();
   renderDashboard();
   populateStrategyDropdown();
@@ -861,13 +862,11 @@ function renderEntriesTable() {
 
 async function deleteEntry(date, strategy) {
   if (!await confirmModal(`Delete entry for <b>${getStrategyName(strategy)}</b> on ${date}?`)) return;
-  try {
-    await api('DELETE', '/api/entries', { date, strategy });
-    await loadData();
-    renderEntriesTable();
-  } catch (e) {
-    toast('Delete failed: ' + e.message, 'err');
-  }
+  const data = getData();
+  data.entries = data.entries.filter(e => !(e.date === date && e.strategy === strategy));
+  saveData(data);
+  loadData();
+  renderEntriesTable();
 }
 
 // ---- Log Entry Form ----
@@ -890,20 +889,25 @@ document.getElementById('saveEntry').addEventListener('click', async () => {
     return;
   }
 
-  try {
-    await api('POST', '/api/entries', { date, strategy, investedFunds: +investedFunds, pnl: +pnl });
-    msg.textContent = '✓ Entry saved!';
-    msg.className = 'form-msg ok';
-    document.getElementById('entryDate').value = '';
-    document.getElementById('entryFunds').value = '';
-    document.getElementById('entryPnl').value = '';
-    await loadData();
-    renderEntriesTable();
-    setTimeout(() => msg.textContent = '', 3000);
-  } catch (e) {
-    msg.textContent = '✗ ' + e.message;
-    msg.className = 'form-msg err';
+  const data = getData();
+  const existingIdx = data.entries.findIndex(e => e.date === date && e.strategy === strategy);
+  const entry = { date, strategy, investedFunds: +investedFunds, pnl: +pnl };
+  if (existingIdx >= 0) {
+    data.entries[existingIdx] = entry;
+  } else {
+    data.entries.push(entry);
   }
+  data.entries.sort((a, b) => a.date.localeCompare(b.date));
+  saveData(data);
+
+  msg.textContent = '✓ Entry saved!';
+  msg.className = 'form-msg ok';
+  document.getElementById('entryDate').value = '';
+  document.getElementById('entryFunds').value = '';
+  document.getElementById('entryPnl').value = '';
+  loadData();
+  renderEntriesTable();
+  setTimeout(() => msg.textContent = '', 3000);
 });
 
 // ---- Strategies Page ----
@@ -934,13 +938,12 @@ function renderStrategiesPage() {
 
 async function deleteStrategy(id) {
   if (!await confirmModal(`Delete strategy "<b>${getStrategyName(id)}</b>" and all its entries?`)) return;
-  try {
-    await api('DELETE', `/api/strategies/${id}`);
-    await loadData();
-    renderStrategiesPage();
-  } catch (e) {
-    toast('Delete failed: ' + e.message, 'err');
-  }
+  const data = getData();
+  data.strategies = data.strategies.filter(s => s.id !== id);
+  data.entries = data.entries.filter(e => e.strategy !== id);
+  saveData(data);
+  loadData();
+  renderStrategiesPage();
 }
 
 document.getElementById('saveStrategy').addEventListener('click', async () => {
@@ -954,24 +957,20 @@ document.getElementById('saveStrategy').addEventListener('click', async () => {
     return;
   }
 
-  let res;
-  try {
-    res = await api('POST', '/api/strategies', { name, color });
-  } catch (e) {
-    msg.textContent = '✗ ' + e.message;
+  const data = getData();
+  const id = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+  if (data.strategies.find(s => s.id === id)) {
+    msg.textContent = '✗ Strategy already exists';
     msg.className = 'form-msg err';
     return;
   }
-  if (res.error) {
-    msg.textContent = '✗ ' + res.error;
-    msg.className = 'form-msg err';
-    return;
-  }
+  data.strategies.push({ id, name, color });
+  saveData(data);
 
   msg.textContent = '✓ Strategy added!';
   msg.className = 'form-msg ok';
   document.getElementById('stratName').value = '';
-  await loadData();
+  loadData();
   renderStrategiesPage();
   setTimeout(() => msg.textContent = '', 3000);
 });
@@ -1070,22 +1069,20 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
     );
     if (!confirmed) return;
 
-    try {
-      const res = await api('POST', '/api/import', parsed);
-      if (res.error) { toast(res.error, 'err'); return; }
-      toast(`Imported ${res.entries} entries across ${res.strategies} strategies`);
-      await loadData();
-    } catch (e) {
-      toast('Import failed: ' + e.message, 'err');
-    }
+    const data = {
+      strategies: parsed.strategies,
+      entries: parsed.entries.sort((a, b) => a.date.localeCompare(b.date))
+    };
+    saveData(data);
+    toast(`Imported ${data.entries.length} entries across ${data.strategies.length} strategies`);
+    loadData();
   };
   reader.readAsText(file);
 });
 
 // ---- Init ----
-async function init() {
-  allData = await api('GET', '/api/data');
-  // Set calendar to the last month that has data
+function init() {
+  allData = getData();
   if (allData.entries.length > 0) {
     const lastDate = allData.entries.map(e => e.date).sort().pop();
     calYear = parseInt(lastDate.substring(0, 4));
