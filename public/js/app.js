@@ -50,6 +50,12 @@ async function api(method, path, body) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(path, opts);
+  if (!res.ok) {
+    const text = await res.text();
+    let msg;
+    try { msg = JSON.parse(text).error; } catch { msg = `Server error ${res.status}`; }
+    throw new Error(msg || `Server error ${res.status}`);
+  }
   return res.json();
 }
 
@@ -855,9 +861,13 @@ function renderEntriesTable() {
 
 async function deleteEntry(date, strategy) {
   if (!await confirmModal(`Delete entry for <b>${getStrategyName(strategy)}</b> on ${date}?`)) return;
-  await api('DELETE', '/api/entries', { date, strategy });
-  await loadData();
-  renderEntriesTable();
+  try {
+    await api('DELETE', '/api/entries', { date, strategy });
+    await loadData();
+    renderEntriesTable();
+  } catch (e) {
+    toast('Delete failed: ' + e.message, 'err');
+  }
 }
 
 // ---- Log Entry Form ----
@@ -880,15 +890,20 @@ document.getElementById('saveEntry').addEventListener('click', async () => {
     return;
   }
 
-  await api('POST', '/api/entries', { date, strategy, investedFunds: +investedFunds, pnl: +pnl });
-  msg.textContent = '✓ Entry saved!';
-  msg.className = 'form-msg ok';
-  document.getElementById('entryDate').value = '';
-  document.getElementById('entryFunds').value = '';
-  document.getElementById('entryPnl').value = '';
-  await loadData();
-  renderEntriesTable();
-  setTimeout(() => msg.textContent = '', 3000);
+  try {
+    await api('POST', '/api/entries', { date, strategy, investedFunds: +investedFunds, pnl: +pnl });
+    msg.textContent = '✓ Entry saved!';
+    msg.className = 'form-msg ok';
+    document.getElementById('entryDate').value = '';
+    document.getElementById('entryFunds').value = '';
+    document.getElementById('entryPnl').value = '';
+    await loadData();
+    renderEntriesTable();
+    setTimeout(() => msg.textContent = '', 3000);
+  } catch (e) {
+    msg.textContent = '✗ ' + e.message;
+    msg.className = 'form-msg err';
+  }
 });
 
 // ---- Strategies Page ----
@@ -919,9 +934,13 @@ function renderStrategiesPage() {
 
 async function deleteStrategy(id) {
   if (!await confirmModal(`Delete strategy "<b>${getStrategyName(id)}</b>" and all its entries?`)) return;
-  await api('DELETE', `/api/strategies/${id}`);
-  await loadData();
-  renderStrategiesPage();
+  try {
+    await api('DELETE', `/api/strategies/${id}`);
+    await loadData();
+    renderStrategiesPage();
+  } catch (e) {
+    toast('Delete failed: ' + e.message, 'err');
+  }
 }
 
 document.getElementById('saveStrategy').addEventListener('click', async () => {
@@ -935,7 +954,14 @@ document.getElementById('saveStrategy').addEventListener('click', async () => {
     return;
   }
 
-  const res = await api('POST', '/api/strategies', { name, color });
+  let res;
+  try {
+    res = await api('POST', '/api/strategies', { name, color });
+  } catch (e) {
+    msg.textContent = '✗ ' + e.message;
+    msg.className = 'form-msg err';
+    return;
+  }
   if (res.error) {
     msg.textContent = '✗ ' + res.error;
     msg.className = 'form-msg err';

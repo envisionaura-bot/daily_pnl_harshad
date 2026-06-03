@@ -12,7 +12,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ---- Storage: file locally, Vercel KV in production ----
 let kv = null;
 if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-  kv = require('@vercel/kv');
+  ({ kv } = require('@vercel/kv'));
 }
 
 const KV_KEY = 'trades';
