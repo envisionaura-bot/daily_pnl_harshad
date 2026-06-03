@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TradeDesk — Execution Analysis</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">TradeDesk</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-section="dashboard">
+        <span class="nav-icon">⬡</span> Dashboard
+      </a>
+      <a href="#" class="nav-item" data-section="entries">
+        <span class="nav-icon">⊞</span> Log Entry
+      </a>
+      <a href="#" class="nav-item" data-section="strategies">
+        <span class="nav-icon">◎</span> Strategies
+      </a>
+    </nav>
+
+    <!-- Strategy Filter -->
+    <div class="sidebar-section">
+      <div class="section-label">FILTER BY STRATEGY</div>
+      <div class="strategy-filters" id="strategyFilters">
+        <label class="strategy-chip active" data-id="all">
+          <input type="radio" name="stratFilter" value="all" checked hidden />
+          <span class="chip-dot" style="background:#ffffff33"></span> All
+        </label>
+      </div>
+    </div>
+
+    <!-- Date Range -->
+    <div class="sidebar-section">
+      <div class="section-label">DATE RANGE</div>
+      <div class="date-inputs">
+        <label>From
+          <input type="date" id="dateFrom" class="date-input" />
+        </label>
+        <label>To
+          <input type="date" id="dateTo" class="date-input" />
+        </label>
+        <button class="btn-apply" id="applyFilter">Apply</button>
+        <button class="btn-reset" id="resetFilter">Reset</button>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      Data saved locally · JSON
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Header -->
+    <header class="topbar">
+      <div class="topbar-title" id="pageTitle">Execution Analysis</div>
+      <div class="topbar-meta" id="dateRangeLabel">All time</div>
+    </header>
+
+    <!-- DASHBOARD SECTION -->
+    <section class="section" id="section-dashboard">
+
+      <!-- KPI Row -->
+      <div class="kpi-row" id="kpiRow"></div>
+
+      <!-- Charts Row 1 -->
+      <div class="charts-row">
+        <div class="chart-card wide">
+          <div class="chart-header">
+            <span class="chart-title">Last 30 Trading Days — Daily P&L</span>
+            <span class="chart-badge" id="last30Badge">₹</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chartLast30"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Strategy Split</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chartDonut"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calendar View -->
+      <div class="chart-card full">
+        <div class="chart-header">
+          <span class="chart-title">Calendar View</span>
+          <div class="cal-nav">
+            <button class="cal-btn" id="calPrev">‹</button>
+            <span id="calMonthLabel" class="cal-month"></span>
+            <button class="cal-btn" id="calNext">›</button>
+          </div>
+        </div>
+        <div id="calendarGrid" class="calendar-months-wrap"></div>
+        <div class="cal-legend">
+          <span class="leg-item"><span class="leg-dot green"></span>Profit</span>
+          <span class="leg-item"><span class="leg-dot red"></span>Loss</span>
+          <span class="leg-item"><span class="leg-dot grey"></span>No Trade</span>
+        </div>
+      </div>
+
+      <!-- Charts Row 2 -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Monthly P&L %</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chartMonthly"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Cumulative P&L</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chartCumulative"></canvas>
+          </div>
+        </div>
+
+
+      </div>
+
+      <!-- Strategy Performance Table -->
+      <div class="chart-card full">
+        <div class="chart-header">
+          <span class="chart-title">Strategy Performance Breakdown</span>
+        </div>
+        <div id="strategyTable" class="strategy-table"></div>
+      </div>
+
+    </section>
+
+    <!-- LOG ENTRY SECTION -->
+    <section class="section hidden" id="section-entries">
+      <div class="form-card">
+        <h2 class="form-title">Log Daily Trade Entry</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="entryDate" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label>Strategy</label>
+            <select id="entryStrategy" class="form-input">
+              <option value="">Select strategy</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Invested Funds (₹)</label>
+            <input type="number" id="entryFunds" class="form-input" placeholder="e.g. 100000" />
+          </div>
+          <div class="form-group">
+            <label>P&L (₹) — negative for loss</label>
+            <input type="number" id="entryPnl" class="form-input" placeholder="e.g. 1500 or -800" />
+          </div>
+        </div>
+        <button class="btn-primary" id="saveEntry">Save Entry</button>
+        <div id="entryMsg" class="form-msg"></div>
+      </div>
+
+      <!-- Recent Entries Table -->
+      <div class="chart-card full" style="margin-top:2rem">
+        <div class="chart-header">
+          <span class="chart-title">Recent Entries</span>
+        </div>
+        <div id="entriesTable" class="data-table-wrap"></div>
+      </div>
+    </section>
+
+    <!-- STRATEGIES SECTION -->
+    <section class="section hidden" id="section-strategies">
+      <div class="form-card">
+        <h2 class="form-title">Add New Strategy</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Strategy Name</label>
+            <input type="text" id="stratName" class="form-input" placeholder="e.g. Gap & Go" />
+          </div>
+          <div class="form-group">
+            <label>Color</label>
+            <input type="color" id="stratColor" class="form-input color-input" value="#00d4ff" />
+          </div>
+        </div>
+        <button class="btn-primary" id="saveStrategy">Add Strategy</button>
+        <div id="stratMsg" class="form-msg"></div>
+      </div>
+
+      <div class="chart-card full" style="margin-top:2rem">
+        <div class="chart-header"><span class="chart-title">Your Strategies</span></div>
+        <div id="strategiesList" class="strategies-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
