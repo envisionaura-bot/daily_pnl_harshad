@@ -431,14 +431,14 @@ function renderCalendar(entries) {
     byDate[e.date] = (byDate[e.date] || 0) + e.pnl;
   });
 
-  // Show 3 months: calMonth-1, calMonth, calMonth+1
+  // Show 3 months: 2 months ago, last month, current month
   const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  const months = [-1, 0, 1].map(offset => {
+  const months = [-2, -1, 0].map(offset => {
     let m = calMonth + offset;
     let y = calYear;
-    if (m < 0) { m = 11; y--; }
-    if (m > 11) { m = 0; y++; }
+    while (m < 0) { m += 12; y--; }
+    while (m > 11) { m -= 12; y++; }
     return { y, m };
   });
 
@@ -862,6 +862,7 @@ function renderEntriesTable() {
 
 async function deleteEntry(date, strategy) {
   if (!await confirmModal(`Delete entry for <b>${getStrategyName(strategy)}</b> on ${date}?`)) return;
+  if (!await secretKeyModal()) return;
   const data = getData();
   data.entries = data.entries.filter(e => !(e.date === date && e.strategy === strategy));
   saveData(data);
@@ -938,6 +939,7 @@ function renderStrategiesPage() {
 
 async function deleteStrategy(id) {
   if (!await confirmModal(`Delete strategy "<b>${getStrategyName(id)}</b>" and all its entries?`)) return;
+  if (!await secretKeyModal()) return;
   const data = getData();
   data.strategies = data.strategies.filter(s => s.id !== id);
   data.entries = data.entries.filter(e => e.strategy !== id);
@@ -975,7 +977,7 @@ document.getElementById('saveStrategy').addEventListener('click', async () => {
   setTimeout(() => msg.textContent = '', 3000);
 });
 
-// ---- Confirm modal (replaces window.confirm to avoid browser dialog blocking) ----
+// ---- Confirm modal ----
 function confirmModal(message) {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
@@ -994,6 +996,49 @@ function confirmModal(message) {
     overlay.querySelector('.confirm-ok').addEventListener('click', () => cleanup(true));
     overlay.querySelector('.confirm-cancel').addEventListener('click', () => cleanup(false));
     overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(false); });
+  });
+}
+
+// ---- Secret key modal ----
+const DELETE_SECRET = '7357567373';
+
+function secretKeyModal() {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.innerHTML = `
+      <div class="confirm-box">
+        <div class="confirm-msg">Enter secret key to confirm deletion:</div>
+        <input class="secret-input" type="password" placeholder="Secret key" autocomplete="off" />
+        <div class="secret-error" style="display:none;color:var(--red);font-family:var(--mono);font-size:12px;margin-top:6px">Incorrect key</div>
+        <div class="confirm-actions" style="margin-top:16px">
+          <button class="confirm-cancel">Cancel</button>
+          <button class="confirm-ok">Confirm</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector('.secret-input');
+    const errEl = overlay.querySelector('.secret-error');
+    input.focus();
+
+    const cleanup = (result) => { overlay.remove(); resolve(result); };
+
+    overlay.querySelector('.confirm-ok').addEventListener('click', () => {
+      if (input.value === DELETE_SECRET) {
+        cleanup(true);
+      } else {
+        errEl.style.display = 'block';
+        input.value = '';
+        input.focus();
+      }
+    });
+    overlay.querySelector('.confirm-cancel').addEventListener('click', () => cleanup(false));
+    overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(false); });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') overlay.querySelector('.confirm-ok').click();
+      if (e.key === 'Escape') cleanup(false);
+    });
   });
 }
 
@@ -1083,11 +1128,9 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
 // ---- Init ----
 function init() {
   allData = getData();
-  if (allData.entries.length > 0) {
-    const lastDate = allData.entries.map(e => e.date).sort().pop();
-    calYear = parseInt(lastDate.substring(0, 4));
-    calMonth = parseInt(lastDate.substring(5, 7)) - 1;
-  }
+  const now = new Date();
+  calYear = now.getFullYear();
+  calMonth = now.getMonth();
   renderAll();
 }
 init();

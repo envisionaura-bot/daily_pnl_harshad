@@ -861,3 +861,18 @@ body {
   transition: opacity .15s;
 }
 .confirm-ok:hover { opacity: 0.85; }
+.secret-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--bg4);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  outline: none;
+  letter-spacing: 2px;
+}
+.secret-input:focus { border-color: var(--accent); }
