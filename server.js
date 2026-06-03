@@ -134,6 +134,22 @@ app.get('/api/analytics/monthly', (req, res) => {
   res.json(result);
 });
 
+// POST import — replace entire dataset
+app.post('/api/import', (req, res) => {
+  const { strategies, entries } = req.body;
+  if (!Array.isArray(strategies) || !Array.isArray(entries)) {
+    return res.status(400).json({ error: 'Invalid format: strategies and entries arrays required' });
+  }
+  for (const e of entries) {
+    if (!e.date || !e.strategy || e.investedFunds == null || e.pnl == null) {
+      return res.status(400).json({ error: `Invalid entry: ${JSON.stringify(e)}` });
+    }
+  }
+  const data = { strategies, entries: entries.sort((a, b) => a.date.localeCompare(b.date)) };
+  writeData(data);
+  res.json({ success: true, strategies: strategies.length, entries: entries.length });
+});
+
 // Serve index for any unmatched route
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

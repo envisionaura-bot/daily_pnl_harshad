@@ -57,6 +57,7 @@ async function loadData() {
   allData = await api('GET', '/api/data');
   renderStrategyFilters();
   renderDashboard();
+  populateStrategyDropdown();
 }
 
 // ---- Navigation ----
@@ -70,7 +71,7 @@ function navigate(section) {
   const titles = { dashboard: 'Execution Analysis', entries: 'Log Entry', strategies: 'Manage Strategies' };
   document.getElementById('pageTitle').textContent = titles[section];
 
-  if (section === 'entries') renderEntriesTable();
+  if (section === 'entries') { populateStrategyDropdown(); renderEntriesTable(); }
   if (section === 'strategies') renderStrategiesPage();
 }
 
@@ -947,6 +948,94 @@ document.getElementById('saveStrategy').addEventListener('click', async () => {
   await loadData();
   renderStrategiesPage();
   setTimeout(() => msg.textContent = '', 3000);
+});
+
+// ---- Toast notification ----
+function toast(msg, type = 'ok', duration = 3000) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), duration);
+}
+
+// ---- Export JSON ----
+document.getElementById('exportJson').addEventListener('click', () => {
+  const json = JSON.stringify(allData, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().split('T')[0];
+  a.href = url;
+  a.download = `trades-backup-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported trades-backup.json');
+});
+
+// ---- Export CSV ----
+document.getElementById('exportCsv').addEventListener('click', () => {
+  const rows = [['Date', 'Strategy', 'Strategy Name', 'Invested Funds', 'PnL', 'Return %']];
+  const sorted = [...allData.entries].sort((a, b) => a.date.localeCompare(b.date));
+  sorted.forEach(e => {
+    const name = getStrategyName(e.strategy);
+    const ret = e.investedFunds > 0 ? ((e.pnl / e.investedFunds) * 100).toFixed(2) : '0';
+    rows.push([e.date, e.strategy, name, e.investedFunds, e.pnl, ret]);
+  });
+  const csv = rows.map(r => r.map(v => '"' + v + '"').join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().split('T')[0];
+  a.href = url;
+  a.download = `trades-${date}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported trades.csv');
+});
+
+// ---- Import JSON ----
+document.getElementById('importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = ''; // reset so same file can be re-imported
+
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    let parsed;
+    try {
+      parsed = JSON.parse(ev.target.result);
+    } catch {
+      toast('Invalid JSON file', 'err'); return;
+    }
+    if (!parsed.strategies || !parsed.entries) {
+      toast('File missing strategies or entries', 'err'); return;
+    }
+
+    const confirmed = confirm(
+      `Import will REPLACE all current data with:
+` +
+      `• ${parsed.strategies.length} strategies
+` +
+      `• ${parsed.entries.length} entries
+
+` +
+      `Make sure you have a backup. Continue?`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await api('POST', '/api/import', parsed);
+      if (res.error) { toast(res.error, 'err'); return; }
+      toast(`Imported ${res.entries} entries across ${res.strategies} strategies`);
+      await loadData();
+    } catch {
+      toast('Import failed — check console', 'err');
+    }
+  };
+  reader.readAsText(file);
 });
 
 // ---- Init ----

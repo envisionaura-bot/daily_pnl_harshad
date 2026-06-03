@@ -56,7 +56,15 @@
     </div>
 
     <div class="sidebar-footer">
-      Data saved locally · JSON
+      <div class="footer-label">DATA</div>
+      <div class="footer-actions">
+        <button class="footer-btn" id="exportJson" title="Export as JSON">⬇ JSON</button>
+        <button class="footer-btn" id="exportCsv" title="Export as CSV">⬇ CSV</button>
+        <label class="footer-btn import-label" title="Import JSON backup">
+          ⬆ Import
+          <input type="file" id="importFile" accept=".json" hidden />
+        </label>
+      </div>
     </div>
   </aside>
 

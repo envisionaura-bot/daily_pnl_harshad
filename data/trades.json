@@ -57,6 +57,12 @@
       "strategy": "niftybtst",
       "investedFunds": 150000,
       "pnl": 984
+    },
+    {
+      "date": "2026-06-03",
+      "strategy": "mcxngm",
+      "investedFunds": 436000,
+      "pnl": 2475
     }
   ]
 }
