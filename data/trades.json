@@ -1,11 +1,6 @@
 {
   "strategies": [
     {
-      "id": "mcxngm",
-      "name": "MCX-NGM",
-      "color": "#00d4ff"
-    },
-    {
       "id": "niftybtst",
       "name": "Nifty-BTST",
       "color": "#a824e5"
@@ -18,16 +13,10 @@
     {
       "id": "niftynishant",
       "name": "Nifty-Nishant",
-      "color": "#e2962c"
+      "color": "#fbbf24"
     }
   ],
   "entries": [
-    {
-      "date": "2026-06-01",
-      "strategy": "mcxngm",
-      "investedFunds": 392000,
-      "pnl": 2425
-    },
     {
       "date": "2026-06-01",
       "strategy": "mcxnishant",
@@ -42,12 +31,6 @@
     },
     {
       "date": "2026-06-02",
-      "strategy": "mcxngm",
-      "investedFunds": 392000,
-      "pnl": 2025
-    },
-    {
-      "date": "2026-06-02",
       "strategy": "mcxnishant",
       "investedFunds": 150000,
       "pnl": 575
@@ -57,12 +40,6 @@
       "strategy": "niftybtst",
       "investedFunds": 150000,
       "pnl": 984
-    },
-    {
-      "date": "2026-06-03",
-      "strategy": "mcxngm",
-      "investedFunds": 436000,
-      "pnl": 2475
     }
   ]
 }

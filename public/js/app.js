@@ -854,7 +854,7 @@ function renderEntriesTable() {
 }
 
 async function deleteEntry(date, strategy) {
-  if (!confirm(`Delete entry for ${strategy} on ${date}?`)) return;
+  if (!await confirmModal(`Delete entry for <b>${getStrategyName(strategy)}</b> on ${date}?`)) return;
   await api('DELETE', '/api/entries', { date, strategy });
   await loadData();
   renderEntriesTable();
@@ -918,7 +918,7 @@ function renderStrategiesPage() {
 }
 
 async function deleteStrategy(id) {
-  if (!confirm(`Delete strategy "${getStrategyName(id)}" and all its entries?`)) return;
+  if (!await confirmModal(`Delete strategy "<b>${getStrategyName(id)}</b>" and all its entries?`)) return;
   await api('DELETE', `/api/strategies/${id}`);
   await loadData();
   renderStrategiesPage();
@@ -949,6 +949,28 @@ document.getElementById('saveStrategy').addEventListener('click', async () => {
   renderStrategiesPage();
   setTimeout(() => msg.textContent = '', 3000);
 });
+
+// ---- Confirm modal (replaces window.confirm to avoid browser dialog blocking) ----
+function confirmModal(message) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.innerHTML = `
+      <div class="confirm-box">
+        <div class="confirm-msg">${message}</div>
+        <div class="confirm-actions">
+          <button class="confirm-cancel">Cancel</button>
+          <button class="confirm-ok">Delete</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const cleanup = (result) => { overlay.remove(); resolve(result); };
+    overlay.querySelector('.confirm-ok').addEventListener('click', () => cleanup(true));
+    overlay.querySelector('.confirm-cancel').addEventListener('click', () => cleanup(false));
+    overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(false); });
+  });
+}
 
 // ---- Toast notification ----
 function toast(msg, type = 'ok', duration = 3000) {
