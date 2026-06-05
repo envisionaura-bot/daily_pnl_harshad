@@ -72,6 +72,7 @@
   <main class="main">
     <!-- Header -->
     <header class="topbar">
+      <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open filters">☰</button>
       <div class="topbar-title" id="pageTitle">Execution Analysis</div>
       <div class="topbar-meta" id="dateRangeLabel">All time</div>
     </header>
@@ -216,6 +217,25 @@
       </div>
     </section>
   </main>
+
+  <!-- Mobile: sidebar overlay backdrop -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Mobile: bottom tab bar -->
+  <nav class="mobile-bottom-nav">
+    <a href="#" class="mobile-tab active" data-section="dashboard">
+      <span class="mobile-tab-icon">⬡</span>
+      <span class="mobile-tab-label">Dashboard</span>
+    </a>
+    <a href="#" class="mobile-tab" data-section="entries">
+      <span class="mobile-tab-icon">⊞</span>
+      <span class="mobile-tab-label">Log Entry</span>
+    </a>
+    <a href="#" class="mobile-tab" data-section="strategies">
+      <span class="mobile-tab-icon">◎</span>
+      <span class="mobile-tab-label">Strategies</span>
+    </a>
+  </nav>
 
   <script src="/js/app.js"></script>
 </body>

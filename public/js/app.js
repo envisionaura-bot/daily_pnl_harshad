@@ -95,24 +95,39 @@ function showLoader(on) {
 // ---- Navigation ----
 function navigate(section) {
   document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .mobile-tab').forEach(n => n.classList.remove('active'));
 
   document.getElementById(`section-${section}`).classList.remove('hidden');
-  document.querySelector(`[data-section="${section}"]`).classList.add('active');
+  document.querySelectorAll(`[data-section="${section}"]`).forEach(el => el.classList.add('active'));
 
   const titles = { dashboard: 'Execution Analysis', entries: 'Log Entry', strategies: 'Manage Strategies' };
   document.getElementById('pageTitle').textContent = titles[section];
+
+  closeMobileSidebar();
 
   if (section === 'entries') { populateStrategyDropdown(); renderEntriesTable(); }
   if (section === 'strategies') renderStrategiesPage();
 }
 
-document.querySelectorAll('.nav-item').forEach(el => {
+document.querySelectorAll('.nav-item, .mobile-tab').forEach(el => {
   el.addEventListener('click', e => {
     e.preventDefault();
     navigate(el.dataset.section);
   });
 });
+
+// ---- Mobile sidebar drawer ----
+function closeMobileSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('active');
+}
+
+document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('active');
+});
+
+document.getElementById('sidebarOverlay').addEventListener('click', closeMobileSidebar);
 
 // ---- Strategy Filter Chips ----
 function renderStrategyFilters() {
