@@ -45,26 +45,51 @@ function destroyChart(key) {
   }
 }
 
-// ---- Local Storage Data Layer ----
-const LS_KEY = 'tradedesk_data';
+// ---- JSONBin Cloud Data Layer ----
+const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/6a222874f5f4af5e29bb67b6';
+const JSONBIN_KEY = '$2a$10$8zxGhy.NKKIVxn8dMu5uJedizX1xgyjDQkhcO0Dsdrhawyabxpmr6';
 
-function getData() {
+async function getData() {
   try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return { strategies: [], entries: [] };
+    const res = await fetch(JSONBIN_URL + '/latest', {
+      headers: { 'X-Access-Key': JSONBIN_KEY }
+    });
+    const json = await res.json();
+    return json.record || { strategies: [], entries: [] };
+  } catch {
+    return { strategies: [], entries: [] };
+  }
 }
 
-function saveData(data) {
-  localStorage.setItem(LS_KEY, JSON.stringify(data));
+async function saveData(data) {
+  await fetch(JSONBIN_URL, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Access-Key': JSONBIN_KEY
+    },
+    body: JSON.stringify(data)
+  });
 }
 
-function loadData() {
-  allData = getData();
+async function loadData() {
+  showLoader(true);
+  allData = await getData();
+  showLoader(false);
   renderStrategyFilters();
   renderDashboard();
   populateStrategyDropdown();
+}
+
+function showLoader(on) {
+  let el = document.getElementById('globalLoader');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'globalLoader';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;height:2px;background:var(--accent);z-index:9999;transition:opacity 0.3s';
+    document.body.appendChild(el);
+  }
+  el.style.opacity = on ? '1' : '0';
 }
 
 // ---- Navigation ----
@@ -863,10 +888,10 @@ function renderEntriesTable() {
 async function deleteEntry(date, strategy) {
   if (!await confirmModal(`Delete entry for <b>${getStrategyName(strategy)}</b> on ${date}?`)) return;
   if (!await secretKeyModal()) return;
-  const data = getData();
+  const data = await getData();
   data.entries = data.entries.filter(e => !(e.date === date && e.strategy === strategy));
-  saveData(data);
-  loadData();
+  await saveData(data);
+  await loadData();
   renderEntriesTable();
 }
 
@@ -890,7 +915,7 @@ document.getElementById('saveEntry').addEventListener('click', async () => {
     return;
   }
 
-  const data = getData();
+  const data = await getData();
   const existingIdx = data.entries.findIndex(e => e.date === date && e.strategy === strategy);
   const entry = { date, strategy, investedFunds: +investedFunds, pnl: +pnl };
   if (existingIdx >= 0) {
@@ -899,14 +924,14 @@ document.getElementById('saveEntry').addEventListener('click', async () => {
     data.entries.push(entry);
   }
   data.entries.sort((a, b) => a.date.localeCompare(b.date));
-  saveData(data);
+  await saveData(data);
 
   msg.textContent = '✓ Entry saved!';
   msg.className = 'form-msg ok';
   document.getElementById('entryDate').value = '';
   document.getElementById('entryFunds').value = '';
   document.getElementById('entryPnl').value = '';
-  loadData();
+  await loadData();
   renderEntriesTable();
   setTimeout(() => msg.textContent = '', 3000);
 });
@@ -940,11 +965,11 @@ function renderStrategiesPage() {
 async function deleteStrategy(id) {
   if (!await confirmModal(`Delete strategy "<b>${getStrategyName(id)}</b>" and all its entries?`)) return;
   if (!await secretKeyModal()) return;
-  const data = getData();
+  const data = await getData();
   data.strategies = data.strategies.filter(s => s.id !== id);
   data.entries = data.entries.filter(e => e.strategy !== id);
-  saveData(data);
-  loadData();
+  await saveData(data);
+  await loadData();
   renderStrategiesPage();
 }
 
@@ -959,7 +984,7 @@ document.getElementById('saveStrategy').addEventListener('click', async () => {
     return;
   }
 
-  const data = getData();
+  const data = await getData();
   const id = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
   if (data.strategies.find(s => s.id === id)) {
     msg.textContent = '✗ Strategy already exists';
@@ -967,12 +992,12 @@ document.getElementById('saveStrategy').addEventListener('click', async () => {
     return;
   }
   data.strategies.push({ id, name, color });
-  saveData(data);
+  await saveData(data);
 
   msg.textContent = '✓ Strategy added!';
   msg.className = 'form-msg ok';
   document.getElementById('stratName').value = '';
-  loadData();
+  await loadData();
   renderStrategiesPage();
   setTimeout(() => msg.textContent = '', 3000);
 });
@@ -1118,19 +1143,35 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
       strategies: parsed.strategies,
       entries: parsed.entries.sort((a, b) => a.date.localeCompare(b.date))
     };
-    saveData(data);
+    await saveData(data);
     toast(`Imported ${data.entries.length} entries across ${data.strategies.length} strategies`);
-    loadData();
+    await loadData();
   };
   reader.readAsText(file);
 });
 
+// ---- Migrate localStorage → JSONBin (runs once, then removes the local key) ----
+async function migrateLocalStorage() {
+  const raw = localStorage.getItem('tradedesk_data');
+  if (!raw) return;
+  try {
+    const local = JSON.parse(raw);
+    if (!local.entries?.length && !local.strategies?.length) return;
+    const remote = await getData();
+    if (remote.entries.length === 0 && remote.strategies.length === 0) {
+      await saveData(local);
+      toast('Migrated local data to cloud ✓');
+    }
+    localStorage.removeItem('tradedesk_data');
+  } catch {}
+}
+
 // ---- Init ----
-function init() {
-  allData = getData();
+async function init() {
   const now = new Date();
   calYear = now.getFullYear();
   calMonth = now.getMonth();
-  renderAll();
+  await migrateLocalStorage();
+  await loadData();
 }
 init();
