@@ -46,7 +46,7 @@ function destroyChart(key) {
 }
 
 // ---- JSONBin Cloud Data Layer ----
-const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/6a222874f5f4af5e29bb67b6';
+const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/6a277abcf5f4af5e29cf057b';
 const JSONBIN_KEY = '$2a$10$8zxGhy.NKKIVxn8dMu5uJedizX1xgyjDQkhcO0Dsdrhawyabxpmr6';
 
 async function getData() {
