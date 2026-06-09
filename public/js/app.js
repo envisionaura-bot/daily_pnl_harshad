@@ -209,11 +209,15 @@ function renderAll() {
 function renderDashboard() {
   const entries = getFilteredEntries();
   renderKPIs(entries);
+  renderMTDKPIs(entries);
   renderLast30Chart(entries);
   renderDonutChart(entries);
   renderCalendar(entries);
   renderMonthlyChart(entries);
   renderCumulativeChart(entries);
+  renderStratProfitChart(entries);
+  renderStratMTDChart(entries);
+  renderDailyStrategyChart(entries);
   renderStrategyTable(entries);
 }
 
@@ -284,6 +288,77 @@ function renderKPIs(entries) {
       value: worstDay !== null ? '-₹' + fmt(Math.abs(worstDay)) : '—',
       sub: worstDay !== null ? 'max drawdown day' : 'no loss days',
       color: worstDay !== null ? 'var(--red)' : 'var(--text2)',
+      badge: '↓'
+    }
+  ];
+
+  container.innerHTML = kpis.map(k => `
+    <div class="kpi-card" style="--kpi-color:${k.color}">
+      <div class="kpi-badge">${k.badge}</div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value" style="color:${k.color}">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>
+  `).join('');
+}
+
+// ---- MTD KPIs ----
+function renderMTDKPIs(entries) {
+  const container = document.getElementById('mtdKpiRow');
+  const now = new Date();
+  const mtdPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const mtdEntries = entries.filter(e => e.date.startsWith(mtdPrefix));
+
+  if (!mtdEntries.length) {
+    container.innerHTML = `<div style="padding:14px 0;color:var(--text3);font-family:var(--mono);font-size:12px">No trades this month yet.</div>`;
+    return;
+  }
+
+  // Aggregate by day
+  const byDay = {};
+  mtdEntries.forEach(e => { byDay[e.date] = (byDay[e.date] || 0) + e.pnl; });
+  const dayPnls = Object.values(byDay);
+
+  const mtdProfit = dayPnls.reduce((s, v) => s + v, 0);
+  const mtdBest = Math.max(...dayPnls);
+  const mtdWorst = Math.min(...dayPnls);
+
+  // Return % — use latest MTD day's total invested funds
+  const latestMtdDate = Object.keys(byDay).sort().pop();
+  const latestMtdFunds = mtdEntries
+    .filter(e => e.date === latestMtdDate)
+    .reduce((s, e) => s + e.investedFunds, 0);
+  const mtdReturn = latestMtdFunds > 0 ? ((mtdProfit / latestMtdFunds) * 100).toFixed(2) : 0;
+
+  const monthName = now.toLocaleDateString('en-IN', { month: 'long' });
+
+  const kpis = [
+    {
+      label: 'MTD Profit',
+      value: fmtSigned(mtdProfit),
+      sub: `${dayPnls.length} trading days in ${monthName}`,
+      color: mtdProfit >= 0 ? 'var(--green)' : 'var(--red)',
+      badge: '📅'
+    },
+    {
+      label: 'MTD Return',
+      value: fmtPct(mtdReturn),
+      sub: `on ₹${fmt(latestMtdFunds)} deployed`,
+      color: mtdReturn >= 0 ? 'var(--green)' : 'var(--red)',
+      badge: '%'
+    },
+    {
+      label: 'MTD Best Day',
+      value: fmtSigned(mtdBest),
+      sub: 'highest single day this month',
+      color: 'var(--green)',
+      badge: '★'
+    },
+    {
+      label: 'MTD Worst Day',
+      value: fmtSigned(mtdWorst),
+      sub: 'lowest single day this month',
+      color: mtdWorst < 0 ? 'var(--red)' : 'var(--text2)',
       badge: '↓'
     }
   ];
@@ -774,6 +849,172 @@ function renderWinLossChart(entries) {
           grid: { color: '#ffffff08' },
           ticks: { color: '#4a5568', font: { size: 10, family: 'JetBrains Mono' } }
         }
+      }
+    }
+  });
+}
+
+// ---- Shared chart defaults ----
+const chartDefaults = {
+  tooltip: {
+    backgroundColor: '#161b23', borderColor: '#ffffff20', borderWidth: 1,
+    titleColor: '#8892a4', bodyColor: '#e8edf5', bodyFont: { family: 'JetBrains Mono' }
+  },
+  scaleX: { grid: { color: '#ffffff08' }, ticks: { color: '#4a5568', font: { size: 10, family: 'JetBrains Mono' } } },
+  scaleY: { grid: { color: '#ffffff08' }, ticks: { color: '#4a5568', font: { size: 10, family: 'JetBrains Mono' } } },
+  legend: { labels: { color: '#8892a4', font: { size: 10, family: 'JetBrains Mono' }, usePointStyle: true, pointStyleWidth: 8, padding: 12 } }
+};
+
+// ---- Helper: compute per-strategy stats from an entry set ----
+function stratStats(entries) {
+  const map = {};
+  allData.strategies.forEach(s => {
+    map[s.id] = { name: s.name, color: s.color, pnl: 0, maxFunds: 0 };
+  });
+  entries.forEach(e => {
+    if (!map[e.strategy]) return;
+    map[e.strategy].pnl += e.pnl;
+    map[e.strategy].maxFunds = Math.max(map[e.strategy].maxFunds, e.investedFunds);
+  });
+  return Object.values(map).filter(s => s.maxFunds > 0);
+}
+
+// ---- Chart: Net Profit & Return % by Strategy ----
+function renderStratProfitChart(entries) {
+  const stats = stratStats(entries);
+  if (!stats.length) { destroyChart('stratProfit'); return; }
+
+  const labels = stats.map(s => s.name);
+  const profits = stats.map(s => s.pnl);
+  const returns = stats.map(s => s.maxFunds > 0 ? +((s.pnl / s.maxFunds) * 100).toFixed(2) : 0);
+  const colors = stats.map(s => s.color);
+
+  destroyChart('stratProfit');
+  const ctx = document.getElementById('chartStratProfit').getContext('2d');
+  charts.stratProfit = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar', label: 'Net Profit (₹)', data: profits, yAxisID: 'yPnl',
+          backgroundColor: colors.map(c => c + '99'), borderColor: colors, borderWidth: 1.5, borderRadius: 4
+        },
+        {
+          type: 'line', label: 'Return %', data: returns, yAxisID: 'yPct',
+          borderColor: '#fbbf24', backgroundColor: 'transparent', borderWidth: 2,
+          pointRadius: 5, pointHoverRadius: 7, pointBackgroundColor: colors, tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: chartDefaults.legend, tooltip: { ...chartDefaults.tooltip, callbacks: {
+        label: ctx => ctx.datasetIndex === 0 ? ` ₹${fmt(ctx.raw)}` : ` ${fmtPct(ctx.raw)}`
+      }}},
+      scales: {
+        x: chartDefaults.scaleX,
+        yPnl: { ...chartDefaults.scaleY, position: 'left', ticks: { ...chartDefaults.scaleY.ticks, callback: v => '₹' + (Math.abs(v) >= 1000 ? (v/1000).toFixed(0)+'k' : v) } },
+        yPct: { ...chartDefaults.scaleY, position: 'right', grid: { drawOnChartArea: false }, ticks: { ...chartDefaults.scaleY.ticks, callback: v => v + '%' } }
+      }
+    }
+  });
+}
+
+// ---- Chart: MTD Profit & Return % by Strategy ----
+function renderStratMTDChart(entries) {
+  const now = new Date();
+  const pfx = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const mtd = entries.filter(e => e.date.startsWith(pfx));
+  const stats = stratStats(mtd);
+
+  destroyChart('stratMTD');
+  if (!stats.length) {
+    const ctx = document.getElementById('chartStratMTD').getContext('2d');
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.fillStyle = '#4a5568';
+    ctx.font = '12px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('No trades this month', ctx.canvas.width / 2, ctx.canvas.height / 2);
+    return;
+  }
+
+  const labels = stats.map(s => s.name);
+  const profits = stats.map(s => s.pnl);
+  const returns = stats.map(s => s.maxFunds > 0 ? +((s.pnl / s.maxFunds) * 100).toFixed(2) : 0);
+  const colors = stats.map(s => s.color);
+
+  const ctx = document.getElementById('chartStratMTD').getContext('2d');
+  charts.stratMTD = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar', label: 'MTD Profit (₹)', data: profits, yAxisID: 'yPnl',
+          backgroundColor: colors.map(c => c + '99'), borderColor: colors, borderWidth: 1.5, borderRadius: 4
+        },
+        {
+          type: 'line', label: 'MTD Return %', data: returns, yAxisID: 'yPct',
+          borderColor: '#fbbf24', backgroundColor: 'transparent', borderWidth: 2,
+          pointRadius: 5, pointHoverRadius: 7, pointBackgroundColor: colors, tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: chartDefaults.legend, tooltip: { ...chartDefaults.tooltip, callbacks: {
+        label: ctx => ctx.datasetIndex === 0 ? ` ₹${fmt(ctx.raw)}` : ` ${fmtPct(ctx.raw)}`
+      }}},
+      scales: {
+        x: chartDefaults.scaleX,
+        yPnl: { ...chartDefaults.scaleY, position: 'left', ticks: { ...chartDefaults.scaleY.ticks, callback: v => '₹' + (Math.abs(v) >= 1000 ? (v/1000).toFixed(0)+'k' : v) } },
+        yPct: { ...chartDefaults.scaleY, position: 'right', grid: { drawOnChartArea: false }, ticks: { ...chartDefaults.scaleY.ticks, callback: v => v + '%' } }
+      }
+    }
+  });
+}
+
+// ---- Chart: Daily Profit by Strategy ----
+function renderDailyStrategyChart(entries) {
+  destroyChart('dailyStrategy');
+  if (!entries.length) return;
+
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  const dateSet = [...new Set(sorted.map(e => e.date))];
+  const strategies = allData.strategies.filter(s => entries.some(e => e.strategy === s.id));
+
+  const labels = dateSet.map(d => {
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+  });
+
+  const datasets = strategies.map(s => ({
+    label: s.name,
+    data: dateSet.map(d => {
+      const e = entries.find(e => e.date === d && e.strategy === s.id);
+      return e ? e.pnl : 0;
+    }),
+    backgroundColor: s.color + 'bb',
+    borderColor: s.color,
+    borderWidth: 1,
+    borderRadius: 3,
+    stack: 'stack'
+  }));
+
+  const ctx = document.getElementById('chartDailyStrategy').getContext('2d');
+  charts.dailyStrategy = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: chartDefaults.legend,
+        tooltip: { ...chartDefaults.tooltip, callbacks: {
+          label: ctx => ` ${ctx.dataset.label}: ${fmtSigned(ctx.raw)}`
+        }}
+      },
+      scales: {
+        x: { ...chartDefaults.scaleX, ticks: { ...chartDefaults.scaleX.ticks, maxRotation: 45 } },
+        y: { ...chartDefaults.scaleY, stacked: true, ticks: { ...chartDefaults.scaleY.ticks, callback: v => '₹' + (Math.abs(v) >= 1000 ? (v/1000).toFixed(1)+'k' : v) } }
       }
     }
   });

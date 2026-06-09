@@ -83,6 +83,12 @@
       <!-- KPI Row -->
       <div class="kpi-row" id="kpiRow"></div>
 
+      <!-- MTD KPI Row -->
+      <div class="mtd-section">
+        <div class="mtd-label">MONTH TO DATE</div>
+        <div class="kpi-row" id="mtdKpiRow"></div>
+      </div>
+
       <!-- Charts Row 1 -->
       <div class="charts-row">
         <div class="chart-card wide">
@@ -144,6 +150,37 @@
         </div>
 
 
+      </div>
+
+      <!-- Strategy Comparison -->
+      <div class="section-divider">Strategy Comparison</div>
+
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Net Profit &amp; Return % by Strategy</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chartStratProfit"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">MTD Profit &amp; Return % by Strategy</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="chartStratMTD"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card full">
+        <div class="chart-header">
+          <span class="chart-title">Daily Profit by Strategy</span>
+        </div>
+        <div class="chart-wrap tall">
+          <canvas id="chartDailyStrategy"></canvas>
+        </div>
       </div>
 
       <!-- Strategy Performance Table -->

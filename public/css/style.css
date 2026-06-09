@@ -399,6 +399,42 @@ body {
   opacity: 0.3;
 }
 
+/* ===== SECTION DIVIDER ===== */
+.section-divider {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text2);
+  padding: 6px 0 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+/* ===== TALL CHART WRAP ===== */
+.chart-wrap.tall { height: 320px; }
+
+/* ===== MTD ROW ===== */
+.mtd-section {
+  margin-top: 4px;
+}
+.mtd-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text3);
+  font-family: var(--mono);
+  margin-bottom: 10px;
+  padding-left: 2px;
+}
+.mtd-section .kpi-card {
+  background: var(--bg);
+  border-color: var(--border);
+  border-style: dashed;
+}
+.mtd-section .kpi-value { font-size: 19px; }
+
 /* ===== CHART CARDS ===== */
 .charts-row {
   display: grid;
