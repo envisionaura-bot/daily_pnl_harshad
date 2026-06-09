@@ -76,6 +76,7 @@ async function loadData() {
   showLoader(true);
   allData = await getData();
   showLoader(false);
+  renderTraderFilters();
   renderStrategyFilters();
   renderDashboard();
   populateStrategyDropdown();
@@ -169,6 +170,74 @@ function renderStrategyFilters() {
           cid === 'all' ? activeStrategies.has('all') : (!activeStrategies.has('all') && activeStrategies.has(cid))
         );
       });
+      renderTraderFilters();
+      renderDashboard();
+    });
+  });
+}
+
+// ---- Trader Filter ----
+function getTraderName(strategyName) {
+  const idx = strategyName.indexOf(' - ');
+  return idx > -1 ? strategyName.substring(0, idx).trim() : strategyName;
+}
+
+function getTraderGroups() {
+  const groups = {};
+  allData.strategies.forEach(s => {
+    const trader = getTraderName(s.name);
+    if (!groups[trader]) groups[trader] = [];
+    groups[trader].push(s.id);
+  });
+  return groups;
+}
+
+function activeTrader() {
+  // Returns the trader name if all strategies of exactly one trader are selected, else null
+  if (activeStrategies.has('all')) return null;
+  const groups = getTraderGroups();
+  for (const [trader, ids] of Object.entries(groups)) {
+    if (ids.length > 0 && ids.every(id => activeStrategies.has(id)) && activeStrategies.size === ids.length) {
+      return trader;
+    }
+  }
+  return null;
+}
+
+function renderTraderFilters() {
+  const container = document.getElementById('traderFilters');
+  const groups = getTraderGroups();
+  const traders = Object.keys(groups);
+
+  // Only show if strategies have multiple distinct traders
+  if (traders.length < 2) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const current = activeTrader();
+
+  container.innerHTML = `
+    <label class="strategy-chip ${current === null ? 'active' : ''}" data-trader="all">
+      <span class="chip-dot" style="background:#ffffff22"></span> All
+    </label>
+    ${traders.map(t => `
+      <label class="strategy-chip ${current === t ? 'active' : ''}" data-trader="${t}">
+        ${t}
+      </label>
+    `).join('')}
+  `;
+
+  container.querySelectorAll('.strategy-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const trader = chip.dataset.trader;
+      if (trader === 'all') {
+        activeStrategies = new Set(['all']);
+      } else {
+        activeStrategies = new Set(groups[trader]);
+      }
+      renderTraderFilters();
+      renderStrategyFilters();
       renderDashboard();
     });
   });
@@ -202,6 +271,7 @@ function updateDateLabel() {
 
 // ---- RENDER ALL ----
 function renderAll() {
+  renderTraderFilters();
   renderStrategyFilters();
   renderDashboard();
 }
